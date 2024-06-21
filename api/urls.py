@@ -19,6 +19,7 @@ router.register(r'historial-compras', HistorialComprasViewSet)
 router.register(r'notas-credito', NotaCreditoViewSet)
 router.register(r'usuarios', UserViewSet)
 router.register(r'bodegas', BodegaViewSet)
+router.register(r'documentos', DocumentoViewSet, basename='documentos')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -28,5 +29,7 @@ urlpatterns = [
     path('promociones-desactivadas/', PromocionViewSet.as_view({'get': 'list_inactive'}), name='promociones-desactivadas'),
     path('productos-vigentes/', PromocionViewSet.as_view({'get': 'productos_vigentes'}), name='productos-vigentes'),
     path('ventas/confirmar/', VentaViewSet.as_view({'post': 'confirmar_venta'}), name='confirmar-venta'),
+    path('ventas/<int:pk>/documento/', VentaViewSet.as_view({'get': 'obtener_documento'}), name='obtener-documento'),
     path('reportes/ventas/<str:fecha_inicio>/<str:fecha_fin>/', ventas_por_fecha),
+    path('clientes/<str:rut>/historial/', historial_compras_cliente, name='historial-compras-cliente')
 ]

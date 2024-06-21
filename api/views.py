@@ -1,3 +1,5 @@
+from datetime import datetime
+from venv import logger
 from django.utils import timezone
 from rest_framework import viewsets, generics, status
 from rest_framework.decorators import api_view, action
@@ -6,6 +8,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import *
 from .serializers import *
+from django_filters.rest_framework import DjangoFilterBackend
+
+
+
 class BaseViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -203,6 +209,8 @@ class VentaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Venta.objects.filter(estado=True)
     serializer_class = VentaSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['sucursal', 'vendedor', 'fecha']
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -220,6 +228,7 @@ class VentaViewSet(viewsets.ModelViewSet):
         tipo_documento = request.data.get('tipo_documento')
         numero_documento = request.data.get('numero_documento')
 
+        cliente_data['rut'] = rut_cliente
         # Verifica si el cliente ya está registrado por su RUT
         try:
             cliente = Cliente.objects.get(rut=rut_cliente)
@@ -289,7 +298,62 @@ class VentaViewSet(viewsets.ModelViewSet):
             documento = Factura.objects.create(venta=venta, numero=numero_documento)
             return Response(FacturaSerializer(documento).data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=['get'], url_path='documento')
+    def obtener_documento(self, request, pk=None):
+        try:
+            venta = self.get_object()
+            if hasattr(venta, 'boleta'):
+                documento = venta.boleta
+                serializer = BoletaSerializer(documento)
+            elif hasattr(venta, 'factura'):
+                documento = venta.factura
+                serializer = FacturaSerializer(documento)
+            else:
+                return Response({"detail": "No se encontró documento asociado."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Venta.DoesNotExist:
+            return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+
+
+
+@api_view(['GET'])
+def historial_compras_cliente(request, rut):
+    try:
+        cliente = Cliente.objects.get(rut=rut)
+        logger.info(f"Cliente encontrado: {cliente.nombre} {cliente.apellido}")
+        
+        ventas = Venta.objects.filter(cliente=cliente, estado=True)
+        logger.info(f"Ventas encontradas para el cliente {cliente.rut}: {ventas.count()}")
+
+        if not ventas.exists():
+            logger.info(f"No se encontraron ventas para el cliente con RUT {cliente.rut}")
+            return Response({"detail": "No se encontraron ventas para el cliente."}, status=status.HTTP_404_NOT_FOUND)
+
+        resultado = []
+        for venta in ventas:
+            detalles = DetalleVenta.objects.filter(venta=venta)
+            logger.info(f"Detalles de venta encontrados para la venta {venta.id}: {detalles.count()}")
+
+            for detalle in detalles:
+                logger.info(f"Detalle de venta: Producto {detalle.producto.nombre}, Cantidad {detalle.cantidad}, Precio Unitario {detalle.precio_unitario}, Precio Total {detalle.precio_total}")
+                resultado.append({
+                    "venta_id": venta.id,
+                    "fecha": venta.fecha,
+                    "producto": detalle.producto.nombre,
+                    "cantidad": detalle.cantidad,
+                    "precio_unitario": detalle.precio_unitario,
+                    "precio_total": detalle.precio_total
+                })
+
+        logger.info(f"Historial de compras construido: {len(resultado)} elementos encontrados.")
+        return Response(resultado, status=status.HTTP_200_OK)
+    except Cliente.DoesNotExist:
+        logger.error(f"Cliente con RUT {rut} no encontrado.")
+        return Response({"detail": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        logger.error(f"Error inesperado: {str(e)}")
+        return Response({"detail": "Error inesperado en el servidor."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PromocionViewSet(viewsets.ModelViewSet):
     queryset = Promocion.objects.all()
@@ -335,6 +399,15 @@ class PromocionViewSet(viewsets.ModelViewSet):
         
         serializer = ProductoPromocionSerializer(productos, many=True)
         return Response(serializer.data)
+@api_view(['GET'])
+def historial_compras_cliente(request, rut):
+    try:
+        cliente = Cliente.objects.get(rut=rut)
+        historial = HistorialCompras.objects.filter(cliente=cliente)
+        serializer = HistorialComprasSerializer(historial, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Cliente.DoesNotExist:
+        return Response({"detail": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
 
 
 class HistorialComprasViewSet(BaseViewSet):
@@ -382,3 +455,67 @@ def ventas_por_fecha(request, fecha_inicio, fecha_fin):
     ventas = Venta.objects.filter(fecha__range=[fecha_inicio, fecha_fin], estado=True)
     serializer = VentaSerializer(ventas, many=True)
     return Response(serializer.data)
+
+
+class DocumentoViewSet(viewsets.ViewSet):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['get'], url_path='listar-todos', url_name='listar_todos')
+    def listar_todos(self, request):
+        facturas = Factura.objects.all()
+        boletas = Boleta.objects.all()
+
+        facturas_serializer = FacturaSerializer(facturas, many=True)
+        boletas_serializer = BoletaSerializer(boletas, many=True)
+
+        return Response({
+            'facturas': facturas_serializer.data,
+            'boletas': boletas_serializer.data
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], url_path='boletas-mes', url_name='boletas_mes')
+    def listar_boletas_mes(self, request):
+        mes = request.query_params.get('mes', None)
+        año = request.query_params.get('año', None)
+
+        if not mes or not año:
+            return Response({"detail": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            mes = int(mes)
+            año = int(año)
+            start_of_month = datetime(año, mes, 1)
+            if mes == 12:
+                end_of_month = datetime(año + 1, 1, 1)
+            else:
+                end_of_month = datetime(año, mes + 1, 1)
+        except ValueError:
+            return Response({"detail": "Mes y año deben ser números válidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        boletas = Boleta.objects.filter(fecha_emision__gte=start_of_month, fecha_emision__lt=end_of_month)
+        serializer = BoletaSerializer(boletas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='facturas-mes', url_name='facturas_mes')
+    def listar_facturas_mes(self, request):
+        mes = request.query_params.get('mes', None)
+        año = request.query_params.get('año', None)
+
+        if not mes or not año:
+            return Response({"detail": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            mes = int(mes)
+            año = int(año)
+            start_of_month = datetime(año, mes, 1)
+            if mes == 12:
+                end_of_month = datetime(año + 1, 1, 1)
+            else:
+                end_of_month = datetime(año, mes + 1, 1)
+        except ValueError:
+            return Response({"detail": "Mes y año deben ser números válidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        facturas = Factura.objects.filter(fecha_emision__gte=start_of_month, fecha_emision__lt=end_of_month)
+        serializer = FacturaSerializer(facturas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

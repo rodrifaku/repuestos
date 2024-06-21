@@ -125,26 +125,36 @@ class CarroDeComprasSerializer(serializers.ModelSerializer):
         fields = ['session_id', 'producto', 'cantidad', 'precio_unitario', 'precio_total']
 
 class DetalleVentaSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+
     class Meta:
         model = DetalleVenta
-        fields = ['producto', 'cantidad', 'precio_unitario', 'precio_total']
+        fields = ['producto', 'producto_nombre', 'cantidad', 'precio_unitario', 'precio_total', 'descuento_aplicado']
+
 
 class VentaSerializer(serializers.ModelSerializer):
+    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    cliente_apellido = serializers.CharField(source='cliente.apellido', read_only=True)
+    sucursal_nombre = serializers.CharField(source='sucursal.nombre', read_only=True)
+    vendedor_nombre = serializers.CharField(source='vendedor.username', read_only=True)  # Añadir nombre del vendedor
     detalles = DetalleVentaSerializer(many=True)
 
     class Meta:
         model = Venta
-        fields = ['id', 'cliente', 'sucursal', 'fecha', 'total', 'vendedor', 'estado', 'detalles']
+        fields = ['id', 'cliente', 'cliente_nombre', 'cliente_apellido', 'sucursal', 'sucursal_nombre', 'fecha', 'total', 'vendedor', 'vendedor_nombre','estado', 'detalles']
+
 
 class FacturaSerializer(serializers.ModelSerializer):
+    venta = VentaSerializer()  # Incluir detalles de la venta
     class Meta:
         model = Factura
-        fields = ['venta', 'numero', 'fecha_emision', 'estado']
+        fields = ['id','venta', 'numero', 'fecha_emision', 'estado']
 
 class BoletaSerializer(serializers.ModelSerializer):
+    venta = VentaSerializer()  # Incluir detalles de la venta
     class Meta:
         model = Boleta
-        fields = ['venta', 'numero', 'fecha_emision', 'estado']
+        fields = ['id','venta', 'numero', 'fecha_emision', 'estado']
 
 
 
@@ -159,9 +169,11 @@ class PromocionSerializer(serializers.ModelSerializer):
 
 
 class HistorialComprasSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+
     class Meta:
         model = HistorialCompras
-        fields = '__all__'
+        fields = ['id', 'cliente', 'producto', 'producto_nombre', 'fecha', 'cantidad', 'precio_total', 'estado']
 
 class NotaCreditoSerializer(serializers.ModelSerializer):
     class Meta:
