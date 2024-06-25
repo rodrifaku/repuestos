@@ -1,3 +1,4 @@
+from datetime import timezone
 from django.db import models
 from django.contrib.auth.models import User
 
@@ -67,10 +68,16 @@ class CarroDeCompras(models.Model):
 class Venta(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    fecha = models.DateTimeField(auto_now_add=True)
+    fecha = models.DateTimeField(null=True, blank=True, verbose_name="Fecha")  # Permitir null y blank
     total = models.DecimalField(max_digits=10, decimal_places=2)
     vendedor = models.ForeignKey(User, on_delete=models.CASCADE)
     estado = models.BooleanField(default=True)
+    entregado = models.BooleanField(default=False, verbose_name="Entregado")  # Nuevo campo para estado de entrega
+
+    def save(self, *args, **kwargs):
+        if not self.fecha:
+            self.fecha = timezone.now()
+        super(Venta, self).save(*args, **kwargs)
 
 class DetalleVenta(models.Model):
     venta = models.ForeignKey(Venta, related_name='detalles', on_delete=models.CASCADE)
@@ -87,13 +94,13 @@ class DetalleVenta(models.Model):
 class Factura(models.Model):
     venta = models.OneToOneField(Venta, on_delete=models.CASCADE)
     numero = models.CharField(max_length=20)
-    fecha_emision = models.DateTimeField(auto_now_add=True)
+    fecha_emision = models.DateTimeField(null=True)
     estado = models.BooleanField(default=True)
 
 class Boleta(models.Model):
     venta = models.OneToOneField(Venta, on_delete=models.CASCADE)
     numero = models.CharField(max_length=20)
-    fecha_emision = models.DateTimeField(auto_now_add=True)
+    fecha_emision = models.DateTimeField(null=True)
     estado = models.BooleanField(default=True)
 
 class Promocion(models.Model):
@@ -112,7 +119,23 @@ class HistorialCompras(models.Model):
     estado = models.BooleanField(default=True, verbose_name="Estado")
 
 class NotaCredito(models.Model):
-    venta = models.ForeignKey(Venta, on_delete=models.CASCADE, verbose_name="Venta")
-    motivo = models.TextField(verbose_name="Motivo")
-    fecha = models.DateTimeField(auto_now_add=True, verbose_name="Fecha")
-    estado = models.BooleanField(default=True, verbose_name="Estado")
+    venta = models.ForeignKey(Venta, on_delete=models.CASCADE)
+    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    descripcion = models.TextField()
+    fecha = models.DateTimeField(auto_now_add=True)
+    estado = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Nota de Crédito #{self.id} - Venta #{self.venta.id}"
+    
+from django.db import models
+
+
+
+
+class Correlativo(models.Model):
+    tipo_documento = models.CharField(max_length=20, unique=True)
+    ultimo_numero = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.tipo_documento}: {self.ultimo_numero}"

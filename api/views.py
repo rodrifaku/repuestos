@@ -4,11 +4,12 @@ from django.utils import timezone
 from rest_framework import viewsets, generics, status
 from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import *
 from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db import transaction
 
 
 
@@ -227,6 +228,8 @@ class VentaViewSet(viewsets.ModelViewSet):
         vendedor_id = request.data.get('vendedor')
         tipo_documento = request.data.get('tipo_documento')
         numero_documento = request.data.get('numero_documento')
+        total = request.data.get('total')
+        detalles_data = request.data.get('detalles')
 
         cliente_data['rut'] = rut_cliente
         # Verifica si el cliente ya está registrado por su RUT
@@ -246,57 +249,115 @@ class VentaViewSet(viewsets.ModelViewSet):
         sucursal = Sucursal.objects.get(id=sucursal_id)
         vendedor = User.objects.get(id=vendedor_id)
 
-        detalles_temp = CarroDeCompras.objects.filter(session_id=session_id)
-        if not detalles_temp.exists():
-            return Response({"detail": "No hay productos en el carrito de compras."}, status=status.HTTP_400_BAD_REQUEST)
+        # detalles_temp = CarroDeCompras.objects.filter(session_id=session_id)
+        # if not detalles_temp.exists():
+        #   return Response({"detail": "No hay productos en el carrito de compras."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        fecha = request.data.get('fecha', timezone.now())
 
         venta = Venta.objects.create(
             cliente=cliente,
             sucursal=sucursal,
             vendedor=vendedor,
+            fecha=fecha,
             total=0
         )
 
         total = 0
-        for detalle_temp in detalles_temp:
-            producto = detalle_temp.producto
-            cantidad = detalle_temp.cantidad
-            precio_unitario = detalle_temp.precio_unitario
-            descuento_aplicado = 0
+        # Determinar si se debe usar el carrito de compras o los detalles de la venta manual
+        if 'session_id' in request.data:
+            session_id = request.data.get('session_id')
+            detalles_temp = CarroDeCompras.objects.filter(session_id=session_id)
+            if not detalles_temp.exists():
+                return Response({"detail": "No hay productos en el carrito de compras."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Aplicar descuento si hay promociones vigentes
-            promociones = producto.promociones.filter(estado=True, fecha_inicio__lte=timezone.now(), fecha_fin__gte=timezone.now())
-            if promociones.exists():
-                promocion = promociones.first()  # Suponiendo que aplicamos solo la primera promoción activa
-                descuento_aplicado = promocion.descuento
-                precio_unitario -= (precio_unitario * (descuento_aplicado / 100))
+            total = 0
+            for detalle_temp in detalles_temp:
+                producto = detalle_temp.producto
+                cantidad = detalle_temp.cantidad
+                precio_unitario = detalle_temp.precio_unitario
+                descuento_aplicado = 0
 
-            if producto.stock < cantidad:
-                return Response({"detail": f"Producto {producto.nombre} no tiene suficiente stock."}, status=status.HTTP_400_BAD_REQUEST)
+                # Aplicar descuento si hay promociones vigentes
+                promociones = producto.promociones.filter(estado=True, fecha_inicio__lte=timezone.now(), fecha_fin__gte=timezone.now())
+                if promociones.exists():
+                    promocion = promociones.first()
+                    descuento_aplicado = promocion.descuento
+                    precio_unitario -= (precio_unitario * (descuento_aplicado / 100))
 
-            DetalleVenta.objects.create(
-                venta=venta,
-                producto=producto,
-                cantidad=cantidad,
-                precio_unitario=precio_unitario,
-                precio_total=precio_unitario * cantidad,
-                descuento_aplicado=descuento_aplicado
-            )
+                if producto.stock < cantidad:
+                    return Response({"detail": f"Producto {producto.nombre} no tiene suficiente stock."}, status=status.HTTP_400_BAD_REQUEST)
 
-            producto.stock -= cantidad
-            producto.save()
-            total += precio_unitario * cantidad
+                DetalleVenta.objects.create(
+                    venta=venta,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    precio_total=precio_unitario * cantidad,
+                    descuento_aplicado=descuento_aplicado
+                )
 
-        venta.total = total
-        venta.save()
-        detalles_temp.delete()
+                producto.stock -= cantidad
+                producto.save()
+                total += precio_unitario * cantidad
 
-        if tipo_documento == 'boleta':
-            documento = Boleta.objects.create(venta=venta, numero=numero_documento)
-            return Response(BoletaSerializer(documento).data, status=status.HTTP_201_CREATED)
+            venta.total = total
+            venta.save()
+
+            detalles_temp.delete()
         else:
-            documento = Factura.objects.create(venta=venta, numero=numero_documento)
-            return Response(FacturaSerializer(documento).data, status=status.HTTP_201_CREATED)
+            # Manejo de venta manual sin carrito
+            total = 0
+            for detalle_data in detalles_data:
+                producto_id = detalle_data.get('producto')
+                cantidad = detalle_data.get('cantidad')
+                precio_unitario = detalle_data.get('precio_unitario')
+
+                producto = Producto.objects.get(id=producto_id)
+                descuento_aplicado = 0
+
+                # Aplicar descuento si hay promociones vigentes
+                promociones = producto.promociones.filter(estado=True, fecha_inicio__lte=timezone.now(), fecha_fin__gte=timezone.now())
+                if promociones.exists():
+                    promocion = promociones.first()
+                    descuento_aplicado = promocion.descuento
+                    precio_unitario -= (precio_unitario * (descuento_aplicado / 100))
+
+                if producto.stock < cantidad:
+                    return Response({"detail": f"Producto {producto.nombre} no tiene suficiente stock."}, status=status.HTTP_400_BAD_REQUEST)
+
+                DetalleVenta.objects.create(
+                    venta=venta,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    precio_total=precio_unitario * cantidad,
+                    descuento_aplicado=descuento_aplicado
+                )
+
+                producto.stock -= cantidad
+                producto.save()
+                total += precio_unitario * cantidad
+
+            venta.total = total
+            venta.save()
+
+        # Crear el documento tributario después de guardar la venta
+        with transaction.atomic():
+            if tipo_documento == 'boleta':
+                correlativo, created = Correlativo.objects.get_or_create(tipo_documento='boleta')
+                correlativo.ultimo_numero += 1
+                correlativo.save()
+                documento = Boleta.objects.create(venta=venta, numero=correlativo.ultimo_numero, fecha_emision=fecha)
+                return Response(BoletaSerializer(documento).data, status=status.HTTP_201_CREATED)
+            elif tipo_documento == 'factura':
+                correlativo, created = Correlativo.objects.get_or_create(tipo_documento='factura')
+                correlativo.ultimo_numero += 1
+                correlativo.save()
+                documento = Factura.objects.create(venta=venta, numero=correlativo.ultimo_numero, fecha_emision=fecha)
+                return Response(FacturaSerializer(documento).data, status=status.HTTP_201_CREATED)
+            else:
+                return Response({"detail": "Tipo de documento no válido."}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['get'], url_path='documento')
     def obtener_documento(self, request, pk=None):
@@ -314,7 +375,24 @@ class VentaViewSet(viewsets.ModelViewSet):
         except Venta.DoesNotExist:
             return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(detail=True, methods=['post'], url_path='entregar')
+    def entregar(self, request, pk=None):
+        venta = self.get_object()
+        venta.entregado = True
+        venta.save()
+        return Response({"message": "Productos entregados correctamente."}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], url_path='por-entregar')
+    def ventas_por_entregar(self, request):
+        ventas = Venta.objects.filter(estado=True, entregado=False)
+        serializer = VentaSerializer(ventas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @action(detail=False, methods=['get'], url_path='entregadas')
+    def ventas_entregadas(self, request):
+        ventas = Venta.objects.filter(estado=True, entregado=True)
+        serializer = VentaSerializer(ventas, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -414,9 +492,7 @@ class HistorialComprasViewSet(BaseViewSet):
     queryset = HistorialCompras.objects.filter(estado=True)
     serializer_class = HistorialComprasSerializer
 
-class NotaCreditoViewSet(BaseViewSet):
-    queryset = NotaCredito.objects.filter(estado=True)
-    serializer_class = NotaCreditoSerializer
+
 
 class RegistroUsuarioView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -519,3 +595,45 @@ class DocumentoViewSet(viewsets.ViewSet):
         facturas = Factura.objects.filter(fecha_emision__gte=start_of_month, fecha_emision__lt=end_of_month)
         serializer = FacturaSerializer(facturas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class NotaCreditoViewSet(viewsets.ModelViewSet):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = NotaCredito.objects.filter(estado=True)
+    serializer_class = NotaCreditoSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.estado = False
+        instance.save()
+        return Response({"message": "Nota de crédito deshabilitada correctamente."}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='listar-mes', url_name='listar_mes')
+    def listar_mes(self, request):
+        mes = request.query_params.get('mes', None)
+        año = request.query_params.get('año', None)
+
+        if not mes or not año:
+            return Response({"detail": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            mes = int(mes)
+            año = int(año)
+            start_of_month = datetime(año, mes, 1)
+            if mes == 12:
+                end_of_month = datetime(año + 1, 1, 1)
+            else:
+                end_of_month = datetime(año, mes + 1, 1)
+        except ValueError:
+            return Response({"detail": "Mes y año deben ser números válidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        notas_credito = NotaCredito.objects.filter(fecha__gte=start_of_month, fecha__lt=end_of_month)
+        serializer = NotaCreditoSerializer(notas_credito, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+
+class CorrelativoViewSet(viewsets.ModelViewSet):
+    queryset = Correlativo.objects.all()
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    serializer_class = CorrelativoSerializer

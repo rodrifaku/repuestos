@@ -1,0 +1,12 @@
+[
+    {
+        "nombre": "Lo Espejo",
+        "direccion": "Av. Pajaritos 1465",
+        "estado": true
+    },
+    {
+        "nombre": "Maipú",
+        "direccion": "Av. Central 123",
+        "estado": true
+    }
+]

@@ -1,0 +1,42 @@
+[
+    {
+        "username": "rodolfo",
+        "password": "rodolfo",
+        "email": "rodolfo@example.com",
+        "first_name": "Rodolfo",
+        "last_name": "Morales",
+        "rol": "admin",
+        "sucursal": 1,
+        "is_active": true
+    },
+    {
+        "username": "jaime",
+        "password": "jaime",
+        "email": "jaime@ejemplo.com",
+        "first_name": "Jaime",
+        "last_name": "Aravena",
+        "rol": "vendedor",
+        "sucursal": 1,
+        "is_active": true
+    },
+    {
+        "username": "bodega",
+        "password": "bodega",
+        "email": "bodega@example.com",
+        "first_name": "bodega",
+        "last_name": "bodega",
+        "rol": "bodeguero",
+        "sucursal": 1,
+        "is_active": true
+    },
+    {
+        "username": "contador",
+        "password": "contador",
+        "email": "contador@ejemplo.com",
+        "first_name": "Contador",
+        "last_name": "Apellido",
+        "rol": "contador",
+        "sucursal": 1,
+        "is_active": true
+    }
+]

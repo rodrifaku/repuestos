@@ -141,8 +141,32 @@ class VentaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Venta
-        fields = ['id', 'cliente', 'cliente_nombre', 'cliente_apellido', 'sucursal', 'sucursal_nombre', 'fecha', 'total', 'vendedor', 'vendedor_nombre','estado', 'detalles']
+        fields = ['id', 'cliente', 'cliente_nombre', 'cliente_apellido', 'sucursal', 'sucursal_nombre', 'fecha', 'total', 'vendedor', 'vendedor_nombre', 'estado', 'detalles', 'entregado']
 
+    def create(self, validated_data):
+        detalles_data = validated_data.pop('detalles')
+        venta = Venta.objects.create(**validated_data)
+        for detalle_data in detalles_data:
+            DetalleVenta.objects.create(venta=venta, **detalle_data)
+        return venta
+
+    def update(self, instance, validated_data):
+        detalles_data = validated_data.pop('detalles', None)
+        instance.cliente = validated_data.get('cliente', instance.cliente)
+        instance.sucursal = validated_data.get('sucursal', instance.sucursal)
+        instance.fecha = validated_data.get('fecha', instance.fecha)
+        instance.total = validated_data.get('total', instance.total)
+        instance.vendedor = validated_data.get('vendedor', instance.vendedor)
+        instance.estado = validated_data.get('estado', instance.estado)
+        instance.entregado = validated_data.get('entregado', instance.entregado)
+        instance.save()
+
+        if detalles_data:
+            instance.detalles.all().delete()
+            for detalle_data in detalles_data:
+                DetalleVenta.objects.create(venta=instance, **detalle_data)
+
+        return instance
 
 class FacturaSerializer(serializers.ModelSerializer):
     venta = VentaSerializer()  # Incluir detalles de la venta
@@ -175,10 +199,6 @@ class HistorialComprasSerializer(serializers.ModelSerializer):
         model = HistorialCompras
         fields = ['id', 'cliente', 'producto', 'producto_nombre', 'fecha', 'cantidad', 'precio_total', 'estado']
 
-class NotaCreditoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NotaCredito
-        fields = '__all__'
 
 class ProfileSerializer(serializers.ModelSerializer):
     sucursal = serializers.PrimaryKeyRelatedField(queryset=Sucursal.objects.all())
@@ -252,3 +272,15 @@ class UserListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id','username', 'email', 'first_name', 'last_name', 'profile','is_active']
+
+class NotaCreditoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotaCredito
+        fields = ['id', 'venta', 'monto', 'descripcion', 'fecha', 'estado']
+
+
+
+class CorrelativoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Correlativo
+        fields = ['id','tipo_documento', 'ultimo_numero']

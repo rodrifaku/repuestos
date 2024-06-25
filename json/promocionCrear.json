@@ -1,0 +1,42 @@
+[
+    {
+        "descripcion": "Promoción de Invierno",
+        "descuento": 30,
+        "fecha_inicio": "2024-06-21", 
+        "fecha_fin": "2024-09-23",     
+        "productos": [3, 4, 5],
+        "estado": true
+    },
+    {
+        "descripcion": "Promoción de Verano",
+        "descuento": 20,
+        "fecha_inicio": "2024-12-21", 
+        "fecha_fin": "2025-03-20",    
+        "productos": [1, 2, 6, 7],
+        "estado": true
+    },
+    {
+        "descripcion": "Descuento de Fin de Año",
+        "descuento": 40,
+        "fecha_inicio": "2024-12-15",
+        "fecha_fin": "2025-01-15",
+        "productos": [8, 9, 10, 11],
+        "estado": true
+    },
+    {
+        "descripcion": "Promoción de Primavera",
+        "descuento": 25,
+        "fecha_inicio": "2024-09-23",  
+        "fecha_fin": "2024-12-21",     
+        "productos": [12, 13, 14],
+        "estado": true
+    },
+    {
+        "descripcion": "Promoción de Otoño",
+        "descuento": 15,
+        "fecha_inicio": "2024-03-20",  
+        "fecha_fin": "2024-06-21",     
+        "productos": [15, 16, 17],
+        "estado": true
+    }
+]

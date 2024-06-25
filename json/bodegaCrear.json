@@ -1,0 +1,12 @@
+[
+    {
+        "nombre": "Bodega Maipu",
+        "sucursal": 1,
+        "direccion": "Av. Pagaritos 123"
+    },
+    {
+        "nombre": "Bodega Santiago",
+        "sucursal": 2,
+        "direccion": "Calle Falsa 456"
+    }
+]

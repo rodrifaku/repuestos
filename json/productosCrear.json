@@ -1,0 +1,182 @@
+[
+    {
+        "nombre": "Aceite de Motor",
+        "descripcion": "Aceite para motor de alta calidad",
+        "precio": 15000,
+        "categoria": 1,
+        "stock": 50,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Filtro de Aire",
+        "descripcion": "Filtro de aire eficiente",
+        "precio": 8000,
+        "categoria": 1,
+        "stock": 75,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Turbo de Motor",
+        "descripcion": "Turbo de alto rendimiento",
+        "precio": 250000,
+        "categoria": 1,
+        "stock": 20,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Parachoques delantero",
+        "descripcion": "Parachoques delantero resistente",
+        "precio": 50000,
+        "categoria": 2,
+        "stock": 10,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Parachoques trasero",
+        "descripcion": "Parachoques trasero resistente",
+        "precio": 45000,
+        "categoria": 2,
+        "stock": 10,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Vidrio delantero",
+        "descripcion": "Vidrio delantero templado",
+        "precio": 60000,
+        "categoria": 2,
+        "stock": 15,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Vidrio trasero",
+        "descripcion": "Vidrio trasero templado",
+        "precio": 55000,
+        "categoria": 2,
+        "stock": 15,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Amortiguador delantero",
+        "descripcion": "Amortiguador delantero de alta calidad",
+        "precio": 120000,
+        "categoria": 3,
+        "stock": 25,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Amortiguador trasero",
+        "descripcion": "Amortiguador trasero de alta calidad",
+        "precio": 110000,
+        "categoria": 3,
+        "stock": 25,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Disco de Freno delantero",
+        "descripcion": "Disco de freno delantero duradero",
+        "precio": 90000,
+        "categoria": 4,
+        "stock": 30,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Disco de Freno trasero",
+        "descripcion": "Disco de freno trasero duradero",
+        "precio": 85000,
+        "categoria": 4,
+        "stock": 30,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Sistema de Inyección Electrónica",
+        "descripcion": "Sistema de inyección electrónica avanzado",
+        "precio": 300000,
+        "categoria": 5,
+        "stock": 10,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Navegador GPS",
+        "descripcion": "Navegador GPS de última generación",
+        "precio": 200000,
+        "categoria": 5,
+        "stock": 20,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Alternador de Motor",
+        "descripcion": "Alternador de motor de alta eficiencia",
+        "precio": 180000,
+        "categoria": 5,
+        "stock": 15,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Batería de Motor",
+        "descripcion": "Batería de motor duradera",
+        "precio": 130000,
+        "categoria": 5,
+        "stock": 25,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Llantas de Aluminio",
+        "descripcion": "Llantas de aluminio ligeras",
+        "precio": 90000,
+        "categoria": 9,
+        "stock": 50,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Bomba de Combustible",
+        "descripcion": "Bomba de combustible eficiente",
+        "precio": 75000,
+        "categoria": 9,
+        "stock": 20,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Caja de Cambios",
+        "descripcion": "Caja de cambios robusta",
+        "precio": 500000,
+        "categoria": 16,
+        "stock": 5,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Motor de Arranque",
+        "descripcion": "Motor de arranque de alta potencia",
+        "precio": 220000,
+        "categoria": 16,
+        "stock": 10,
+        "bodega": 1,
+        "estado": true
+    },
+    {
+        "nombre": "Caja de Velocidades",
+        "descripcion": "Caja de velocidades precisa",
+        "precio": 480000,
+        "categoria": 16,
+        "stock": 5,
+        "bodega": 1,
+        "estado": true
+    }
+]

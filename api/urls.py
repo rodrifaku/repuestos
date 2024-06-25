@@ -20,6 +20,8 @@ router.register(r'notas-credito', NotaCreditoViewSet)
 router.register(r'usuarios', UserViewSet)
 router.register(r'bodegas', BodegaViewSet)
 router.register(r'documentos', DocumentoViewSet, basename='documentos')
+router.register(r'correlativos', CorrelativoViewSet)
+
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -31,5 +33,6 @@ urlpatterns = [
     path('ventas/confirmar/', VentaViewSet.as_view({'post': 'confirmar_venta'}), name='confirmar-venta'),
     path('ventas/<int:pk>/documento/', VentaViewSet.as_view({'get': 'obtener_documento'}), name='obtener-documento'),
     path('reportes/ventas/<str:fecha_inicio>/<str:fecha_fin>/', ventas_por_fecha),
-    path('clientes/<str:rut>/historial/', historial_compras_cliente, name='historial-compras-cliente')
+    path('clientes/<str:rut>/historial/', historial_compras_cliente, name='historial-compras-cliente'),
+    path('ventas-por-fecha/<str:fecha_inicio>/<str:fecha_fin>/', ventas_por_fecha, name='ventas_por_fecha')
 ]

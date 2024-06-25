@@ -1,0 +1,82 @@
+[
+    {
+        "nombre": "Motor",
+        "descripcion": "Productos relacionados con el motor del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Carrocería",
+        "descripcion": "Productos relacionados con la estructura y la apariencia del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Suspensión",
+        "descripcion": "Productos relacionados con la suspensión del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Frenos",
+        "descripcion": "Productos relacionados con los sistemas de frenos del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Electrónica",
+        "descripcion": "Productos relacionados con la electrónica del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Accesorios",
+        "descripcion": "Accesorios varios para automóviles",
+        "estado": true
+    },
+    {
+        "nombre": "Interior",
+        "descripcion": "Productos relacionados con el interior del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Exterior",
+        "descripcion": "Productos relacionados con el exterior del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Neumáticos",
+        "descripcion": "Productos relacionados con neumáticos y llantas",
+        "estado": true
+    },
+    {
+        "nombre": "Lubricantes",
+        "descripcion": "Lubricantes y aceites para el automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Herramientas",
+        "descripcion": "Herramientas para mantenimiento y reparación de automóviles",
+        "estado": true
+    },
+    {
+        "nombre": "Iluminación",
+        "descripcion": "Productos de iluminación para automóviles",
+        "estado": true
+    },
+    {
+        "nombre": "Seguridad",
+        "descripcion": "Productos de seguridad para automóviles",
+        "estado": true
+    },
+    {
+        "nombre": "Audio",
+        "descripcion": "Sistemas de audio y entretenimiento para automóviles",
+        "estado": true
+    },
+    {
+        "nombre": "Climatización",
+        "descripcion": "Productos relacionados con la climatización del automóvil",
+        "estado": true
+    },
+    {
+        "nombre": "Transmisión",
+        "descripcion": "Productos relacionados con la transmisión del automóvil",
+        "estado": true
+    }
+]
