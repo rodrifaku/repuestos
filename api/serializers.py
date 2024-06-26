@@ -116,7 +116,10 @@ class ClienteSerializer(serializers.ModelSerializer):
         model = Cliente
         fields = ['id', 'rut', 'nombre', 'apellido', 'email', 'telefono', 'estado']
 
-
+    def validate_rut(self, value):
+        if Cliente.objects.filter(rut=value).exists():
+            raise serializers.ValidationError("Ya existe un cliente con este RUT.")
+        return value
 
 
 class CarroDeComprasSerializer(serializers.ModelSerializer):

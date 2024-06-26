@@ -174,10 +174,19 @@ class ProductoViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
     
 class ClienteViewSet(BaseViewSet):
-    queryset = Cliente.objects.filter(estado=True)
+    queryset = Cliente.objects.all()
     serializer_class = ClienteSerializer
 
-
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        if instance.estado:
+            instance.estado = True
+            instance.save()
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.estado = False
+        instance.save()
+        return Response({"message": f"Cliente '{instance.nombre} {instance.apellido}' deshabilitado correctamente."}, status=status.HTTP_200_OK)
 
 
 class CarroDeComprasViewSet(viewsets.ModelViewSet):
@@ -537,8 +546,19 @@ class DocumentoViewSet(viewsets.ViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
+    def check_user_role(self, request):
+        if not request.user.is_authenticated:
+            return False
+        try:
+            profile = request.user.profile
+            return profile.rol in ['contador', 'admin']
+        except Profile.DoesNotExist:
+            return False
+
     @action(detail=False, methods=['get'], url_path='listar-todos', url_name='listar_todos')
     def listar_todos(self, request):
+        if not self.check_user_role(request):
+            return Response({"detail": "No tiene permiso para ver esta información."}, status=status.HTTP_403_FORBIDDEN)
         facturas = Factura.objects.all()
         boletas = Boleta.objects.all()
 
@@ -552,8 +572,13 @@ class DocumentoViewSet(viewsets.ViewSet):
     
     @action(detail=False, methods=['get'], url_path='boletas-mes', url_name='boletas_mes')
     def listar_boletas_mes(self, request):
+        if not self.check_user_role(request):
+            return Response({"detail": "No tiene permiso para ver esta información."}, status=status.HTTP_403_FORBIDDEN)
+        
         mes = request.query_params.get('mes', None)
         año = request.query_params.get('año', None)
+        sucursal_id = request.query_params.get('sucursal', None)
+        vendedor_id = request.query_params.get('vendedor', None)
 
         if not mes or not año:
             return Response({"detail": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
@@ -570,13 +595,22 @@ class DocumentoViewSet(viewsets.ViewSet):
             return Response({"detail": "Mes y año deben ser números válidos."}, status=status.HTTP_400_BAD_REQUEST)
 
         boletas = Boleta.objects.filter(fecha_emision__gte=start_of_month, fecha_emision__lt=end_of_month)
+        if sucursal_id:
+            boletas = boletas.filter(venta__sucursal_id=sucursal_id)
+        if vendedor_id:
+            boletas = boletas.filter(venta__vendedor_id=vendedor_id)
+
         serializer = BoletaSerializer(boletas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='facturas-mes', url_name='facturas_mes')
     def listar_facturas_mes(self, request):
+        if not self.check_user_role(request):
+            return Response({"detail": "No tiene permiso para ver esta información."}, status=status.HTTP_403_FORBIDDEN)
         mes = request.query_params.get('mes', None)
         año = request.query_params.get('año', None)
+        sucursal_id = request.query_params.get('sucursal', None)
+        vendedor_id = request.query_params.get('vendedor', None)
 
         if not mes or not año:
             return Response({"detail": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
@@ -593,6 +627,12 @@ class DocumentoViewSet(viewsets.ViewSet):
             return Response({"detail": "Mes y año deben ser números válidos."}, status=status.HTTP_400_BAD_REQUEST)
 
         facturas = Factura.objects.filter(fecha_emision__gte=start_of_month, fecha_emision__lt=end_of_month)
+
+        if sucursal_id:
+            facturas = facturas.filter(venta__sucursal_id=sucursal_id)
+        if vendedor_id:
+            facturas = facturas.filter(venta__vendedor_id=vendedor_id)
+
         serializer = FacturaSerializer(facturas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
@@ -618,45 +658,19 @@ class DocumentoViewSet(viewsets.ViewSet):
         notas_credito = NotaCredito.objects.filter(fecha__gte=start_of_month, fecha__lt=end_of_month)
         serializer = NotaCreditoSerializer(notas_credito, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    @action(detail=False, methods=['post'], url_path='crear-nota-credito')
-    def crear_nota_credito(self, request):
-        detalles_data = request.data.get('detalles')
-        venta_id = request.data.get('venta')
-        monto = request.data.get('monto')
-        descripcion = request.data.get('descripcion')
-        
-        try:
-            venta = Venta.objects.get(id=venta_id)
-        except Venta.DoesNotExist:
-            return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
-
-        correlativo, created = Correlativo.objects.get_or_create(tipo_documento='nota_credito')
-        correlativo.ultimo_numero += 1
-        correlativo.save()
-        
-        numero = f"NC-{correlativo.ultimo_numero}"
-        
-        nota_credito = NotaCredito.objects.create(venta=venta, numero=numero, monto=monto, descripcion=descripcion)
-        
-        for detalle_data in detalles_data:
-            producto_id = detalle_data.get('producto')
-            cantidad = detalle_data.get('cantidad')
-            precio_unitario = detalle_data.get('precio_unitario')
-            
-            try:
-                producto = Producto.objects.get(id=producto_id)
-            except Producto.DoesNotExist:
-                return Response({"detail": f"Producto con id {producto_id} no encontrado."}, status=status.HTTP_404_NOT_FOUND)
-            
-            producto.stock += cantidad
-            producto.save()
-            
-            DetalleNotaCredito.objects.create(nota_credito=nota_credito, producto=producto, cantidad=cantidad, precio_unitario=precio_unitario, precio_total=precio_unitario * cantidad)
-        
-        return Response(NotaCreditoSerializer(nota_credito).data, status=status.HTTP_201_CREATED)
+    
 class NotaCreditoViewSet(viewsets.ModelViewSet):
     queryset = NotaCredito.objects.all()
     serializer_class = NotaCreditoSerializer
+
+    def check_user_role(self, request):
+        if not request.user.is_authenticated:
+            return False
+        try:
+            profile = request.user.profile
+            return profile.rol in ['contador', 'admin']
+        except Profile.DoesNotExist:
+            return False
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -665,6 +679,40 @@ class NotaCreditoViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
+    @action(detail=False, methods=['get'], url_path='listar-por-mes', url_name='listar_por_mes')
+    def listar_por_mes(self, request):
+        if not self.check_user_role(request):
+            return Response({"detail": "No tiene permiso para ver esta información."}, status=status.HTTP_403_FORBIDDEN)
+
+        mes = request.query_params.get('mes', None)
+        año = request.query_params.get('año', None)
+        sucursal_id = request.query_params.get('sucursal', None)
+        vendedor_id = request.query_params.get('vendedor', None)
+
+        if not mes or not año:
+            return Response({"detail": "Mes y año son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            mes = int(mes)
+            año = int(año)
+            start_of_month = datetime(año, mes, 1)
+            if mes == 12:
+                end_of_month = datetime(año + 1, 1, 1)
+            else:
+                end_of_month = datetime(año, mes + 1, 1)
+        except ValueError:
+            return Response({"detail": "Mes y año deben ser números válidos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        notas_credito = NotaCredito.objects.filter(fecha__gte=start_of_month, fecha__lt=end_of_month)
+
+        if sucursal_id:
+            notas_credito = notas_credito.filter(venta__sucursal_id=sucursal_id)
+
+        if vendedor_id:
+            notas_credito = notas_credito.filter(venta__vendedor_id=vendedor_id)
+
+        serializer = NotaCreditoSerializer(notas_credito, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CorrelativoViewSet(viewsets.ModelViewSet):
     queryset = Correlativo.objects.all()
