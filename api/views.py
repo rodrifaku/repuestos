@@ -402,7 +402,11 @@ class VentaViewSet(viewsets.ModelViewSet):
         ventas = Venta.objects.filter(estado=True, entregado=True)
         serializer = VentaSerializer(ventas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
+    
+    @action(detail=False, methods=['post'], url_path='entregar-todas')
+    def entregar_todas(self, request):
+        ventas_actualizadas = Venta.objects.filter(estado=True, entregado=False).update(entregado=True)
+        return Response({"message": f"{ventas_actualizadas} ventas actualizadas a entregado."}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 def historial_compras_cliente(request, rut):
