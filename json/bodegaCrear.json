@@ -1,12 +1,12 @@
 [
     {
-        "nombre": "Bodega Maipu",
+        "nombre": "Bodega Lo Espejo",
         "sucursal": 1,
-        "direccion": "Av. Pagaritos 123"
+        "direccion": "Av. Pajaritos 1465"
     },
     {
-        "nombre": "Bodega Santiago",
+        "nombre": "Maipú",
         "sucursal": 2,
-        "direccion": "Calle Falsa 456"
+        "direccion": "Av. Central 123"
     }
 ]

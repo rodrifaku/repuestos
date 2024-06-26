@@ -595,21 +595,9 @@ class DocumentoViewSet(viewsets.ViewSet):
         facturas = Factura.objects.filter(fecha_emision__gte=start_of_month, fecha_emision__lt=end_of_month)
         serializer = FacturaSerializer(facturas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-class NotaCreditoViewSet(viewsets.ModelViewSet):
-    authentication_classes = [JWTAuthentication]
-    permission_classes = [IsAuthenticated]
-    queryset = NotaCredito.objects.filter(estado=True)
-    serializer_class = NotaCreditoSerializer
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.estado = False
-        instance.save()
-        return Response({"message": "Nota de crédito deshabilitada correctamente."}, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=['get'], url_path='listar-mes', url_name='listar_mes')
-    def listar_mes(self, request):
+    
+    @action(detail=False, methods=['get'], url_path='notas-credito-mes', url_name='notas_credito_mes')
+    def listar_notas_credito_mes(self, request):
         mes = request.query_params.get('mes', None)
         año = request.query_params.get('año', None)
 
@@ -630,6 +618,52 @@ class NotaCreditoViewSet(viewsets.ModelViewSet):
         notas_credito = NotaCredito.objects.filter(fecha__gte=start_of_month, fecha__lt=end_of_month)
         serializer = NotaCreditoSerializer(notas_credito, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+    @action(detail=False, methods=['post'], url_path='crear-nota-credito')
+    def crear_nota_credito(self, request):
+        detalles_data = request.data.get('detalles')
+        venta_id = request.data.get('venta')
+        monto = request.data.get('monto')
+        descripcion = request.data.get('descripcion')
+        
+        try:
+            venta = Venta.objects.get(id=venta_id)
+        except Venta.DoesNotExist:
+            return Response({"detail": "Venta no encontrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        correlativo, created = Correlativo.objects.get_or_create(tipo_documento='nota_credito')
+        correlativo.ultimo_numero += 1
+        correlativo.save()
+        
+        numero = f"NC-{correlativo.ultimo_numero}"
+        
+        nota_credito = NotaCredito.objects.create(venta=venta, numero=numero, monto=monto, descripcion=descripcion)
+        
+        for detalle_data in detalles_data:
+            producto_id = detalle_data.get('producto')
+            cantidad = detalle_data.get('cantidad')
+            precio_unitario = detalle_data.get('precio_unitario')
+            
+            try:
+                producto = Producto.objects.get(id=producto_id)
+            except Producto.DoesNotExist:
+                return Response({"detail": f"Producto con id {producto_id} no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+            
+            producto.stock += cantidad
+            producto.save()
+            
+            DetalleNotaCredito.objects.create(nota_credito=nota_credito, producto=producto, cantidad=cantidad, precio_unitario=precio_unitario, precio_total=precio_unitario * cantidad)
+        
+        return Response(NotaCreditoSerializer(nota_credito).data, status=status.HTTP_201_CREATED)
+class NotaCreditoViewSet(viewsets.ModelViewSet):
+    queryset = NotaCredito.objects.all()
+    serializer_class = NotaCreditoSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
 
 class CorrelativoViewSet(viewsets.ModelViewSet):
@@ -637,3 +671,45 @@ class CorrelativoViewSet(viewsets.ModelViewSet):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated, IsAdminUser]
     serializer_class = CorrelativoSerializer
+
+
+@api_view(['POST'])
+def actualizar_stock(request):
+    try:
+        producto_id = request.data.get('producto_id')
+        cantidad_a_sumar = request.data.get('cantidad')
+
+        if not producto_id or not cantidad_a_sumar:
+            return Response({"detail": "producto_id y cantidad son requeridos."}, status=status.HTTP_400_BAD_REQUEST)
+
+        producto = Producto.objects.get(id=producto_id)
+        producto.stock += int(cantidad_a_sumar)
+        producto.save()
+
+        return Response({"detail": f"Stock actualizado. Nuevo stock de {producto.nombre}: {producto.stock}"}, status=status.HTTP_200_OK)
+    except Producto.DoesNotExist:
+        return Response({"detail": "Producto no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['GET'])
+def documentos_por_cliente(request, rut):
+    try:
+        cliente = Cliente.objects.get(rut=rut)
+        boletas = Boleta.objects.filter(venta__cliente=cliente)
+        facturas = Factura.objects.filter(venta__cliente=cliente)
+        notas_credito = NotaCredito.objects.filter(venta__cliente=cliente)
+        
+        boletas_serializer = BoletaSerializer(boletas, many=True)
+        facturas_serializer = FacturaSerializer(facturas, many=True)
+        notas_credito_serializer = NotaCreditoSerializer(notas_credito, many=True)
+        
+        return Response({
+            'boletas': boletas_serializer.data,
+            'facturas': facturas_serializer.data,
+            'notas_credito': notas_credito_serializer.data
+        }, status=status.HTTP_200_OK)
+    except Cliente.DoesNotExist:
+        return Response({"detail": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

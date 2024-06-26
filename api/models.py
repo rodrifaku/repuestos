@@ -118,17 +118,42 @@ class HistorialCompras(models.Model):
     cantidad = models.IntegerField(verbose_name="Cantidad")
     estado = models.BooleanField(default=True, verbose_name="Estado")
 
+# models.py
+
 class NotaCredito(models.Model):
-    venta = models.ForeignKey(Venta, on_delete=models.CASCADE)
-    monto = models.DecimalField(max_digits=10, decimal_places=2)
+    venta = models.ForeignKey('Venta', on_delete=models.CASCADE)
+    numero = models.CharField(max_length=20, unique=True)
+    monto_total = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
     descripcion = models.TextField()
     fecha = models.DateTimeField(auto_now_add=True)
     estado = models.BooleanField(default=True)
 
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            last_nota = NotaCredito.objects.all().order_by('id').last()
+            if last_nota:
+                last_number = int(last_nota.numero.split('-')[1])
+                self.numero = f'NC-{last_number + 1:05d}'
+            else:
+                self.numero = 'NC-00001'
+        super(NotaCredito, self).save(*args, **kwargs)
+
     def __str__(self):
-        return f"Nota de Crédito #{self.id} - Venta #{self.venta.id}"
+        return f"Nota de Crédito #{self.numero} - Venta #{self.venta.id}"
+
+
+class DetalleNotaCredito(models.Model):
+    nota_credito = models.ForeignKey(NotaCredito, related_name='detalles', on_delete=models.CASCADE)
+    producto = models.ForeignKey('Producto', on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_total = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def save(self, *args, **kwargs):
+        self.precio_total = self.cantidad * self.precio_unitario
+        super().save(*args, **kwargs)
     
-from django.db import models
+
 
 
 

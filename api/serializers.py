@@ -180,6 +180,46 @@ class BoletaSerializer(serializers.ModelSerializer):
         model = Boleta
         fields = ['id','venta', 'numero', 'fecha_emision', 'estado']
 
+class DetalleNotaCreditoSerializer(serializers.ModelSerializer):
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+
+    class Meta:
+        model = DetalleNotaCredito
+        fields = ['producto', 'producto_nombre', 'cantidad', 'precio_unitario', 'precio_total']
+        read_only_fields = ['precio_total']
+
+    def create(self, validated_data):
+        validated_data['precio_total'] = validated_data['cantidad'] * validated_data['precio_unitario']
+        return super().create(validated_data)
+
+class NotaCreditoSerializer(serializers.ModelSerializer):
+    detalles = DetalleNotaCreditoSerializer(many=True)
+
+    class Meta:
+        model = NotaCredito
+        fields = ['venta', 'numero', 'monto_total', 'descripcion', 'fecha', 'estado', 'detalles']
+        read_only_fields = ['numero', 'monto_total']
+
+    def create(self, validated_data):
+        detalles_data = validated_data.pop('detalles')
+        nota_credito = NotaCredito.objects.create(**validated_data)
+        
+        monto_total = 0
+        for detalle_data in detalles_data:
+            detalle_data['nota_credito'] = nota_credito
+            detalle_data['precio_total'] = detalle_data['cantidad'] * detalle_data['precio_unitario']
+            producto = Producto.objects.get(id=detalle_data['producto'].id)
+            producto.stock += detalle_data['cantidad']  # Incrementar el stock del producto devuelto
+            producto.save()
+            
+            detalle = DetalleNotaCredito.objects.create(**detalle_data)
+            monto_total += detalle.precio_total
+
+        nota_credito.monto_total = monto_total
+        nota_credito.save()
+        
+        return nota_credito
+
 
 
 class PromocionSerializer(serializers.ModelSerializer):
@@ -273,10 +313,6 @@ class UserListSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id','username', 'email', 'first_name', 'last_name', 'profile','is_active']
 
-class NotaCreditoSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = NotaCredito
-        fields = ['id', 'venta', 'monto', 'descripcion', 'fecha', 'estado']
 
 
 
