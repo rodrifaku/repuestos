@@ -2,7 +2,7 @@ from datetime import datetime
 from venv import logger
 from django.utils import timezone
 from rest_framework import viewsets, generics, status
-from rest_framework.decorators import api_view, action
+from rest_framework.decorators import api_view, action, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -10,6 +10,7 @@ from .models import *
 from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
+from .utils import obtener_productos_externos, enviar_producto_externo
 
 
 
@@ -506,7 +507,6 @@ class HistorialComprasViewSet(BaseViewSet):
     serializer_class = HistorialComprasSerializer
 
 
-
 class RegistroUsuarioView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -746,6 +746,7 @@ def actualizar_stock(request):
     
 @api_view(['GET'])
 def documentos_por_cliente(request, rut):
+
     try:
         cliente = Cliente.objects.get(rut=rut)
         boletas = Boleta.objects.filter(venta__cliente=cliente)
@@ -765,3 +766,53 @@ def documentos_por_cliente(request, rut):
         return Response({"detail": "Cliente no encontrado."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['POST'])
+def sincronizar_productos(request):
+    # Crear o asignar una sucursal predeterminada
+    sucursal, _ = Sucursal.objects.get_or_create(
+        nombre='Default Sucursal',
+        defaults={'direccion': 'Dirección Predeterminada', 'estado': True}
+    )
+    
+    # Obtener productos de la API externa
+    productos_externos = obtener_productos_externos()
+    
+    # Sincronizar productos de la API externa con la API local
+    for producto_externo in productos_externos:
+        categoria, _ = Categoria.objects.get_or_create(nombre='Default Category')  # Ajusta según sea necesario
+        bodega, _ = Bodega.objects.get_or_create(nombre='Default Bodega', defaults={'sucursal': sucursal})  # Ajusta según sea necesario
+        
+        producto_local, created = Producto.objects.get_or_create(
+            nombre=producto_externo['nombre'],
+            defaults={
+                'precio': producto_externo['Precio'],
+                'stock': producto_externo['cantidad'],
+                'descripcion': producto_externo['descripcion'],
+                'categoria': categoria,
+                'bodega': bodega
+            }
+        )
+        if not created:
+            producto_local.precio = producto_externo['Precio']
+            producto_local.stock = producto_externo['cantidad']
+            producto_local.descripcion = producto_externo['descripcion']
+            producto_local.categoria = categoria
+            producto_local.bodega = bodega
+            producto_local.save()
+
+    # Preparar lista de nombres de productos existentes en la API externa
+    nombres_productos_externos = {producto['nombre'] for producto in productos_externos}
+
+    # Sincronizar productos de la API local con la API externa
+    productos_locales = Producto.objects.all()
+    for producto_local in productos_locales:
+        if producto_local.nombre not in nombres_productos_externos:
+            status_code, response_text = enviar_producto_externo(producto_local)
+            if status_code not in [200, 201]:
+                return Response({
+                    "detail": f"Error al enviar producto {producto_local.nombre} a la API externa. Respuesta: {response_text}"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"detail": "Sincronización completada correctamente."})

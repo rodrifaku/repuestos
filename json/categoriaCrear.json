@@ -78,5 +78,10 @@
         "nombre": "Transmisión",
         "descripcion": "Productos relacionados con la transmisión del automóvil",
         "estado": true
+    },
+    {
+        "nombre": "Otros",
+        "descripcion": "Bodega externa",
+        "estado": true
     }
 ]
