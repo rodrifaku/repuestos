@@ -1,4 +1,5 @@
 from datetime import datetime
+EXTERNAL_API_URL = "http://207.231.108.32:8009/api/"
 from venv import logger
 from django.utils import timezone
 from rest_framework import viewsets, generics, status
@@ -11,6 +12,7 @@ from .serializers import *
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
 from .utils import obtener_productos_externos, enviar_producto_externo
+import requests
 
 
 
@@ -816,3 +818,61 @@ def sincronizar_productos(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
     return Response({"detail": "Sincronización completada correctamente."})
+
+@api_view(['GET'])
+def listar_productos_externos(request):
+    productos_externos = obtener_productos_externos()
+    if productos_externos:
+        return Response(productos_externos, status=status.HTTP_200_OK)
+    else:
+        return Response({"detail": "Error al obtener productos de la API externa."}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['PUT'])
+def actualizar_producto_externo(request, producto_id):
+    url = f"{EXTERNAL_API_URL}ice/{producto_id}/"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "nombre": request.data.get('nombre'),
+        "Precio": float(request.data.get('Precio')),
+        "cantidad": request.data.get('cantidad'),
+        "descripcion": request.data.get('descripcion'),
+        "imagen_url": request.data.get('imagen_url', "https://www.servicioruedas.cl/wp-content/uploads/2020/07/Auto-Repuestos-e1595295670370.png")
+    }
+    response = requests.put(url, headers=headers, json=data)
+    if response.status_code in [200, 201]:
+        return Response(response.json(), status=response.status_code)
+    else:
+        return Response({"detail": f"Error al actualizar producto en la API externa. Respuesta: {response.text}"}, status=response.status_code)
+    
+@api_view(['DELETE'])
+def eliminar_producto_externo(request, producto_id):
+    url = f"{EXTERNAL_API_URL}ice/{producto_id}/"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    response = requests.delete(url, headers=headers)
+    if response.status_code == 204:
+        return Response({"detail": "Producto eliminado correctamente en la API externa."}, status=status.HTTP_204_NO_CONTENT)
+    else:
+        return Response({"detail": f"Error al eliminar producto en la API externa. Respuesta: {response.text}"}, status=response.status_code)
+
+@api_view(['POST'])
+def crear_producto_externo(request):
+    url = f"{EXTERNAL_API_URL}ice/"
+    headers = {
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "nombre": request.data.get('nombre'),
+        "Precio": float(request.data.get('Precio')),
+        "cantidad": request.data.get('cantidad'),
+        "descripcion": request.data.get('descripcion'),
+        "imagen_url": request.data.get('imagen_url')
+    }
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code in [200, 201]:
+        return Response(response.json(), status=response.status_code)
+    else:
+        return Response({"detail": f"Error al crear producto en la API externa. Respuesta: {response.text}"}, status=response.status_code)

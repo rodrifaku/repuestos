@@ -38,6 +38,10 @@ urlpatterns = [
     path('ventas-por-fecha/<str:fecha_inicio>/<str:fecha_fin>/', ventas_por_fecha, name='ventas_por_fecha'),
     path('actualizar-stock/', actualizar_stock, name='actualizar_stock'),
     path('documentos-por-cliente/<str:rut>/', documentos_por_cliente, name='documentos_por_cliente'),
-    path('sincronizar-productos/', sincronizar_productos, name='sincronizar-productos')
+    path('sincronizar-productos/', sincronizar_productos, name='sincronizar-productos'),
+    path('listar-productos-externos/', listar_productos_externos, name='listar-productos-externos'),
+    path('actualizar-producto-externo/<int:producto_id>/', actualizar_producto_externo, name='actualizar-producto-externo'),
+    path('eliminar-producto-externo/<int:producto_id>/', eliminar_producto_externo, name='eliminar-producto-externo'),
+    path('crear-producto-externo/', crear_producto_externo, name='crear-producto-externo'),
     #path('notas-credito/crear/', NotaCreditoViewSet.as_view({'post': 'crear_nota_credito'}), name='crear-nota-credito')
 ]
