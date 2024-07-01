@@ -30,3 +30,4 @@ def enviar_producto_externo(producto):
     }
     response = requests.post(url, headers=headers, json=data)
     return response.status_code, response.text  # Retornar también el texto de la respuesta
+
